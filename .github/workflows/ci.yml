@@ -14,7 +14,7 @@ jobs:
     name: Checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Tool registry / docs / version consistency
         run: ./scripts/check-docs.sh
@@ -50,7 +50,7 @@ jobs:
     name: Build plugin
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: gate
         name: Is a VaM reference assembly available?
