@@ -22,7 +22,7 @@ jobs:
     name: Draft release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 
@@ -72,7 +72,7 @@ jobs:
             echo "No VAM_ASSEMBLY_URL secret: drafting notes only. Attach the binary with \`./scripts/release.sh ${{ steps.version.outputs.tag }}\`." >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         if: steps.gate.outputs.enabled == 'true'
         with:
           dotnet-version: '8.0.x'

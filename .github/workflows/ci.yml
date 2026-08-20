@@ -14,7 +14,7 @@ jobs:
     name: Checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Tool registry / docs / version consistency
         run: ./scripts/check-docs.sh
@@ -35,7 +35,7 @@ jobs:
           if ($errors) { $errors | ForEach-Object { Write-Host $_ }; exit 1 }
           Write-Host 'scripts/install.ps1 parses cleanly'
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
 
@@ -50,7 +50,7 @@ jobs:
     name: Build plugin
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: gate
         name: Is a VaM reference assembly available?
@@ -73,7 +73,7 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         if: steps.gate.outputs.enabled == 'true'
         with:
           dotnet-version: '8.0.x'
@@ -91,7 +91,7 @@ jobs:
         if: steps.gate.outputs.enabled == 'true'
         run: dotnet build src/VaMMCP.csproj -c Release -warnaserror -p:VaMRoot="$PWD/vamref"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.gate.outputs.enabled == 'true'
         with:
           name: VaMMCP.dll
