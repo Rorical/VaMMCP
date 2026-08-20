@@ -25,7 +25,8 @@ namespace VaMMCP.Api {
 
 		private static SuperController SC { get { return SuperController.singleton; } }
 
-		public static string F(float v) { return v.ToString("0.######", CultureInfo.InvariantCulture); }
+		/// <summary>A float as a JSON number (see JSONRaw: SimpleJSON would quote it).</summary>
+		public static JSONNode F(float v) { return JSONRaw.Num(v); }
 
 		public static JSONArray Vec(Vector3 v) {
 			JSONArray a = new JSONArray();
@@ -79,7 +80,7 @@ namespace VaMMCP.Api {
 			r["uid"] = a.uid;
 			r["type"] = a.type;
 			r["name"] = a.name != null ? a.name : "";
-			r["on"] = a.on ? "true" : "false";
+			r["on"] = JSONRaw.Bool(a.on);
 			r["position"] = Vec(a.transform.position);
 			r["rotation"] = Vec(a.transform.eulerAngles);
 			return r;
@@ -236,10 +237,10 @@ namespace VaMMCP.Api {
 				atoms++;
 				if (a.type == "Person") persons++;
 			}
-			r["atoms"] = atoms.ToString();
-			r["persons"] = persons.ToString();
+			r["atoms"] = JSONRaw.Num(atoms);
+			r["persons"] = JSONRaw.Num(persons);
 			r["endpoint"] = "http://127.0.0.1:" + Plugin.cfgPort.Value + "/mcp";
-			r["allowEval"] = Plugin.cfgAllowEval.Value ? "true" : "false";
+			r["allowEval"] = JSONRaw.Bool(Plugin.cfgAllowEval.Value);
 			r["time"] = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 			return r;
 		}
@@ -257,7 +258,7 @@ namespace VaMMCP.Api {
 				arr.Add(row);
 			}
 			JSONClass r = new JSONClass();
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["scenes"] = arr;
 			return r;
 		}
@@ -274,15 +275,15 @@ namespace VaMMCP.Api {
 			}
 			JSONClass r = new JSONClass();
 			r["path"] = path;
-			r["merge"] = merge ? "true" : "false";
-			r["loading"] = "true";
+			r["merge"] = JSONRaw.Bool(merge);
+			r["loading"] = JSONRaw.Bool(true);
 			return r;
 		}
 
 		public JSONNode NewScene() {
 			SC.NewScene();
 			JSONClass r = new JSONClass();
-			r["ok"] = "true";
+			r["ok"] = JSONRaw.Bool(true);
 			return r;
 		}
 
@@ -371,7 +372,7 @@ namespace VaMMCP.Api {
 				arr.Add(AtomInfo(a));
 			}
 			JSONClass r = new JSONClass();
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["atoms"] = arr;
 			return r;
 		}
@@ -427,7 +428,7 @@ namespace VaMMCP.Api {
 			if (a.on != on) a.ToggleOn();
 			JSONClass r = new JSONClass();
 			r["uid"] = a.uid;
-			r["on"] = a.on ? "true" : "false";
+			r["on"] = JSONRaw.Bool(a.on);
 			return r;
 		}
 
@@ -485,7 +486,7 @@ namespace VaMMCP.Api {
 				arr.Add(row);
 			}
 			JSONClass r = new JSONClass();
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["persons"] = arr;
 			return r;
 		}
@@ -499,7 +500,7 @@ namespace VaMMCP.Api {
 			JSONClass r = new JSONClass();
 			r["person"] = p.uid;
 			r["name"] = name;
-			r["loading"] = "true";
+			r["loading"] = JSONRaw.Bool(true);
 			return r;
 		}
 
@@ -513,7 +514,7 @@ namespace VaMMCP.Api {
 			AddPresetFiles(arr, "Saves/Person/Clothing", S(args, "search"));
 			AddPresetFiles(arr, "Custom/Clothing", S(args, "search"));
 			AddPackageItemFiles(arr, "Custom/Clothing", S(args, "search"), 300);
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["presets"] = arr;
 			return r;
 		}
@@ -524,7 +525,7 @@ namespace VaMMCP.Api {
 			AddPresetFiles(arr, "Saves/Person/Hair", S(args, "search"));
 			AddPresetFiles(arr, "Custom/Hair", S(args, "search"));
 			AddPackageItemFiles(arr, "Custom/Hair", S(args, "search"), 300);
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["presets"] = arr;
 			return r;
 		}
@@ -560,7 +561,7 @@ namespace VaMMCP.Api {
 				arr.Add(row);
 			}
 			JSONClass r = new JSONClass();
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["packages"] = arr;
 			return r;
 		}
@@ -626,7 +627,7 @@ namespace VaMMCP.Api {
 				arr.Add(row);
 			}
 			JSONClass r = new JSONClass();
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r[key] = arr;
 			return r;
 		}
@@ -761,7 +762,7 @@ namespace VaMMCP.Api {
 			}
 			JSONClass r = new JSONClass();
 			r["person"] = p.uid;
-			r["count"] = count.ToString();
+			r["count"] = JSONRaw.Num(count);
 			r["morphs"] = arr;
 			return r;
 		}
@@ -811,7 +812,7 @@ namespace VaMMCP.Api {
 			}
 			JSONClass r = new JSONClass();
 			r["person"] = p.uid;
-			r["reset"] = reset.ToString();
+			r["reset"] = JSONRaw.Num(reset);
 			if (region != "") r["region"] = region;
 			return r;
 		}
@@ -829,13 +830,13 @@ namespace VaMMCP.Api {
 					JSONClass row = new JSONClass();
 					row["uid"] = it.uid;
 					row["name"] = it.displayName != null ? it.displayName : "";
-					row["active"] = it.active ? "true" : "false";
+					row["active"] = JSONRaw.Bool(it.active);
 					arr.Add(row);
 				}
 			}
 			JSONClass r = new JSONClass();
 			r["person"] = p.uid;
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["items"] = arr;
 			return r;
 		}
@@ -851,13 +852,13 @@ namespace VaMMCP.Api {
 					JSONClass row = new JSONClass();
 					row["uid"] = it.uid;
 					row["name"] = it.displayName != null ? it.displayName : "";
-					row["active"] = it.active ? "true" : "false";
+					row["active"] = JSONRaw.Bool(it.active);
 					arr.Add(row);
 				}
 			}
 			JSONClass r = new JSONClass();
 			r["person"] = p.uid;
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["items"] = arr;
 			return r;
 		}
@@ -880,7 +881,7 @@ namespace VaMMCP.Api {
 			JSONClass r = new JSONClass();
 			r["person"] = p.uid;
 			r["path"] = path;
-			r["loading"] = "true";
+			r["loading"] = JSONRaw.Bool(true);
 			return r;
 		}
 
@@ -901,7 +902,7 @@ namespace VaMMCP.Api {
 			JSONClass r = new JSONClass();
 			r["person"] = p.uid;
 			r["path"] = path;
-			r["loading"] = "true";
+			r["loading"] = JSONRaw.Bool(true);
 			return r;
 		}
 
@@ -969,7 +970,7 @@ namespace VaMMCP.Api {
 			JSONClass r = new JSONClass();
 			r["person"] = p.uid;
 			r["id"] = id;
-			r["on"] = on ? "true" : "false";
+			r["on"] = JSONRaw.Bool(on);
 			return r;
 		}
 
@@ -990,7 +991,7 @@ namespace VaMMCP.Api {
 			JSONClass r = new JSONClass();
 			r["person"] = p.uid;
 			r["id"] = id;
-			r["on"] = on ? "true" : "false";
+			r["on"] = JSONRaw.Bool(on);
 			return r;
 		}
 
@@ -1030,7 +1031,7 @@ namespace VaMMCP.Api {
 			}
 			JSONClass r = new JSONClass();
 			r["person"] = p.uid;
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["expressions"] = arr;
 			return r;
 		}
@@ -1058,7 +1059,7 @@ namespace VaMMCP.Api {
 			r["person"] = p.uid;
 			r["name"] = target.displayName != null ? target.displayName : name;
 			r["value"] = F(target.morphValue);
-			r["cleared"] = cleared.ToString();
+			r["cleared"] = JSONRaw.Num(cleared);
 			return r;
 		}
 
@@ -1073,7 +1074,7 @@ namespace VaMMCP.Api {
 			}
 			JSONClass r = new JSONClass();
 			r["person"] = p.uid;
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["controls"] = arr;
 			return r;
 		}
@@ -1169,7 +1170,7 @@ namespace VaMMCP.Api {
 			}
 			JSONClass r = new JSONClass();
 			r["uid"] = a.uid;
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["storables"] = arr;
 			return r;
 		}
@@ -1206,7 +1207,7 @@ namespace VaMMCP.Api {
 				try {
 					JSONClass p = new JSONClass();
 					p["name"] = n;
-					p["value"] = st.GetBoolParamValue(n) ? "true" : "false";
+					p["value"] = JSONRaw.Bool(st.GetBoolParamValue(n));
 					bools.Add(p);
 				} catch (Exception e) { Log.Debug("bool param " + n + ": " + e.Message); }
 			}
@@ -1347,12 +1348,12 @@ namespace VaMMCP.Api {
 		}
 
 		public static JSONNode SerializePropValue(object v) {
-			if (v == null) return new JSONData("null");
-			if (v is float) return new JSONData(F((float)v));
-			if (v is double) return new JSONData(F((float)(double)v));
-			if (v is int) return new JSONData((int)v);
-			if (v is long) return new JSONData((double)(long)v);
-			if (v is bool) return new JSONData((bool)v ? "true" : "false");
+			if (v == null) return JSONRaw.Null();
+			if (v is float) return JSONRaw.Num((float)v);
+			if (v is double) return JSONRaw.Num((float)(double)v);
+			if (v is int) return JSONRaw.Num((int)v);
+			if (v is long) return JSONRaw.Num((long)v);
+			if (v is bool) return JSONRaw.Bool((bool)v);
 			if (v is string) return new JSONData((string)v);
 			if (v is Vector3) {
 				Vector3 vec = (Vector3)v;
@@ -1469,7 +1470,7 @@ namespace VaMMCP.Api {
 				}
 			} else if (st.GetBoolParamNames().Contains(name)) {
 				r["type"] = "bool";
-				r["value"] = st.GetBoolParamValue(name) ? "true" : "false";
+				r["value"] = JSONRaw.Bool(st.GetBoolParamValue(name));
 			} else if (st.GetStringParamNames().Contains(name)) {
 				r["type"] = "string";
 				r["value"] = st.GetStringParamValue(name);
@@ -1527,7 +1528,7 @@ namespace VaMMCP.Api {
 				case "bool":
 					st.SetBoolParamValue(name, value.AsBool);
 					r["type"] = "bool";
-					r["value"] = st.GetBoolParamValue(name) ? "true" : "false";
+					r["value"] = JSONRaw.Bool(st.GetBoolParamValue(name));
 					break;
 				case "string":
 					st.SetStringParamValue(name, value.Value);
@@ -1572,7 +1573,7 @@ namespace VaMMCP.Api {
 			r["uid"] = a.uid;
 			r["storable"] = S(args, "storable");
 			r["action"] = actionName;
-			r["called"] = "true";
+			r["called"] = JSONRaw.Bool(true);
 			return r;
 		}
 
@@ -1640,9 +1641,9 @@ namespace VaMMCP.Api {
 			}
 			JSONClass r = new JSONClass();
 			r["path"] = path;
-			r["width"] = w.ToString();
-			r["height"] = h.ToString();
-			r["bytes"] = pngBytes.ToString();
+			r["width"] = JSONRaw.Num(w);
+			r["height"] = JSONRaw.Num(h);
+			r["bytes"] = JSONRaw.Num(pngBytes);
 			if (base64 != null) {
 				// McpServer turns these two into an MCP image content block.
 				r["image_base64"] = base64;
@@ -1660,7 +1661,7 @@ namespace VaMMCP.Api {
 			if (Has(args, "paused")) {
 				bool paused = Bool(args, "paused", false);
 				Time.timeScale = paused ? 0f : 1f;
-				applied["paused"] = paused ? "true" : "false";
+				applied["paused"] = JSONRaw.Bool(paused);
 			}
 			if (Has(args, "timeScale")) {
 				Time.timeScale = Num(args, "timeScale", 1f);
@@ -1672,7 +1673,7 @@ namespace VaMMCP.Api {
 		public JSONNode ResetSimulation() {
 			SC.ResetSimulation(10, "VaMMCP", false);
 			JSONClass r = new JSONClass();
-			r["ok"] = "true";
+			r["ok"] = JSONRaw.Bool(true);
 			return r;
 		}
 
@@ -1711,6 +1712,7 @@ namespace VaMMCP.Api {
 			body["source"] = "VaM";
 			body["action"] = "getResources";
 			body["latest_image"] = "Y";
+			// The Hub API takes its parameters as strings; these are request fields, not our output.
 			body["perpage"] = ((int)Num(args, "perpage", 20)).ToString();
 			body["page"] = ((int)Num(args, "page", 1)).ToString();
 			string search = S(args, "search");
@@ -1776,7 +1778,7 @@ namespace VaMMCP.Api {
 							row["tagline"] = res["tag_line"] != null ? res["tag_line"].Value : "";
 							clean.Add(row);
 						}
-						outNode["count"] = clean.Count.ToString();
+						outNode["count"] = JSONRaw.Num(clean.Count);
 						outNode["resources"] = clean;
 					} else {
 						outNode["raw"] = r.Substring(0, Math.Min(500, r.Length));
@@ -1912,7 +1914,7 @@ namespace VaMMCP.Api {
 					if (e != null) throw new ApiError("hub download failed: " + e);
 					JSONClass r = new JSONClass();
 					r["package"] = package;
-					r["downloaded"] = "true";
+					r["downloaded"] = JSONRaw.Bool(true);
 					r["note"] = "the package is installed into AddonPackages; list_packages will show it after the package scan refreshes";
 					return r;
 				}
@@ -1975,12 +1977,12 @@ namespace VaMMCP.Api {
 				JSONClass row = new JSONClass();
 				row["uid"] = p.uid;
 				row["path"] = (p.pluginURLJSON != null && p.pluginURLJSON.val != null) ? p.pluginURLJSON.val : "";
-				row["loaded"] = (p.scriptControllers != null && p.scriptControllers.Count > 0) ? "true" : "false";
+				row["loaded"] = JSONRaw.Bool((p.scriptControllers != null && p.scriptControllers.Count > 0));
 				arr.Add(row);
 			}
 			JSONClass r = new JSONClass();
 			r["atom"] = target.uid;
-			r["count"] = arr.Count.ToString();
+			r["count"] = JSONRaw.Num(arr.Count);
 			r["plugins"] = arr;
 			return r;
 		}
@@ -2013,7 +2015,7 @@ namespace VaMMCP.Api {
 					r["atom"] = target.uid;
 					r["plugin_uid"] = created.uid;
 					r["path"] = path;
-					r["loaded"] = "true";
+					r["loaded"] = JSONRaw.Bool(true);
 					r["note"] = "the plugin registers itself as a storable; configure it via list_storable_params / get_param / set_param with uid=<atom> storable=<plugin_uid>";
 					return r;
 				}
@@ -2117,13 +2119,13 @@ namespace VaMMCP.Api {
 		}
 
 		public static JSONNode SerializeValue(object o) {
-			if (o == null) return new JSONData("null");
+			if (o == null) return JSONRaw.Null();
 			if (o is string) return new JSONData((string)o);
-			if (o is bool) return new JSONData((bool)o ? "true" : "false");
-			if (o is int) return new JSONData((int)o);
-			if (o is long) return new JSONData((double)(long)o);
-			if (o is float) return new JSONData(F((float)o));
-			if (o is double) return new JSONData(F((float)(double)o));
+			if (o is bool) return JSONRaw.Bool((bool)o);
+			if (o is int) return JSONRaw.Num((int)o);
+			if (o is long) return JSONRaw.Num((long)o);
+			if (o is float) return JSONRaw.Num((float)o);
+			if (o is double) return JSONRaw.Num((float)(double)o);
 			if (o is Vector3) {
 				Vector3 v = (Vector3)o;
 				JSONClass r = new JSONClass();

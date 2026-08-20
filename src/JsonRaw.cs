@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using SimpleJSON;
 
-namespace VaMMCP.Mcp {
+namespace VaMMCP {
 	/// <summary>
 	/// VaM's SimpleJSON quotes every value it serialises, so a bool or a number written through
 	/// it goes out as a JSON string. MCP clients built on the official SDK validate responses
@@ -23,6 +23,20 @@ namespace VaMMCP.Mcp {
 
 		public static JSONRaw Num(int value) {
 			return new JSONRaw(value.ToString(CultureInfo.InvariantCulture));
+		}
+
+		public static JSONRaw Num(long value) {
+			return new JSONRaw(value.ToString(CultureInfo.InvariantCulture));
+		}
+
+		/// <summary>JSON has no NaN or Infinity, so those degrade to null.</summary>
+		public static JSONRaw Num(float value) {
+			if (float.IsNaN(value) || float.IsInfinity(value)) return Null();
+			return new JSONRaw(value.ToString("0.######", CultureInfo.InvariantCulture));
+		}
+
+		public static JSONRaw Null() {
+			return new JSONRaw("null");
 		}
 
 		/// <summary>

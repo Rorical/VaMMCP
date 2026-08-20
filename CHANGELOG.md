@@ -8,6 +8,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [1.0.1] - 2026-08-21
 
+### Changed
+- Tool payloads carry real JSON types too: counts, coordinates, morph values, parameter
+  min/max/default and `on`/`active` flags are numbers and booleans instead of quoted strings, and
+  a null value is `null` rather than `"null"`. Timestamps and enum names stay strings, as do the
+  parameters sent to the Hub API, which expects them that way.
+
 ### Fixed
 - **Protocol values are now real JSON types.** VaM's SimpleJSON quotes everything it serialises,
   so `listChanged`, `subscribe`, `isError`, JSON-RPC error codes and — most importantly — the
