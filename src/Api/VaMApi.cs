@@ -1599,11 +1599,16 @@ namespace VaMMCP.Api {
 			return GetCamera();
 		}
 
+		/// <summary>Largest PNG returned inline as base64 (bigger images stay on disk only).</summary>
+		private const int MaxInlineImageBytes = 4 * 1024 * 1024;
+
 		public JSONNode CaptureView(JSONNode args) {
 			Camera cam = MonitorCamera();
 			int w = (int)Num(args, "width", 1280);
 			int h = (int)Num(args, "height", 720);
 			if (w < 64 || h < 64) throw new ApiError("width/height too small");
+			if (w > 4096 || h > 4096) throw new ApiError("width/height too large (max 4096)");
+			bool returnImage = Bool(args, "return_image", false);
 			string path = S(args, "path");
 			if (path == "") path = "Saves/PluginData/vam-mcp/preview.png";
 			FileManagerSecure.CreateDirectory("Saves/PluginData/vam-mcp");
@@ -1612,6 +1617,8 @@ namespace VaMMCP.Api {
 			RenderTexture oldTarget = cam.targetTexture;
 			RenderTexture oldActive = RenderTexture.active;
 			Texture2D tex = null;
+			string base64 = null;
+			int pngBytes = 0;
 			try {
 				cam.targetTexture = rt;
 				cam.Render();
@@ -1620,7 +1627,9 @@ namespace VaMMCP.Api {
 				tex.ReadPixels(new Rect(0, 0, w, h), 0, 0);
 				tex.Apply();
 				byte[] bytes = tex.EncodeToPNG();
+				pngBytes = bytes.Length;
 				FileManagerSecure.WriteAllBytes(path, bytes);
+				if (returnImage && bytes.Length <= MaxInlineImageBytes) base64 = Convert.ToBase64String(bytes);
 			} finally {
 				cam.targetTexture = oldTarget;
 				RenderTexture.active = oldActive;
@@ -1631,6 +1640,14 @@ namespace VaMMCP.Api {
 			r["path"] = path;
 			r["width"] = w.ToString();
 			r["height"] = h.ToString();
+			r["bytes"] = pngBytes.ToString();
+			if (base64 != null) {
+				// McpServer turns these two into an MCP image content block.
+				r["image_base64"] = base64;
+				r["image_mime"] = "image/png";
+			} else if (returnImage) {
+				r["note"] = "image too large to inline (" + pngBytes + " bytes); read it from path instead";
+			}
 			return r;
 		}
 

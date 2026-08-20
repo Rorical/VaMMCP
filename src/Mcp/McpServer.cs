@@ -156,11 +156,30 @@ namespace VaMMCP.Mcp {
 				return ToolError("Error: " + e.Message);
 			}
 
+			// A tool that produced a picture hands it over as image_base64/image_mime; lift those
+			// out of the JSON payload and return them as a proper MCP image content block.
+			string imageData = null;
+			string imageMime = "image/png";
+			JSONClass outObj = outNode != null ? outNode.AsObject : null;
+			if (outObj != null && outObj["image_base64"] != null) {
+				imageData = outObj["image_base64"].Value;
+				if (outObj["image_mime"] != null) imageMime = outObj["image_mime"].Value;
+				outObj.Remove("image_base64");
+				outObj.Remove("image_mime");
+			}
+
 			JSONArray content = new JSONArray();
 			JSONClass textItem = new JSONClass();
 			textItem["type"] = "text";
 			textItem["text"] = outNode != null ? outNode.ToString() : "{}";
 			content.Add(textItem);
+			if (!string.IsNullOrEmpty(imageData)) {
+				JSONClass imageItem = new JSONClass();
+				imageItem["type"] = "image";
+				imageItem["data"] = imageData;
+				imageItem["mimeType"] = imageMime;
+				content.Add(imageItem);
+			}
 
 			JSONClass r = new JSONClass();
 			r["content"] = content;

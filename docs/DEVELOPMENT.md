@@ -1,75 +1,118 @@
-# 开发指南
+# Development guide
 
-## 构建
+*[中文版](DEVELOPMENT.zh-CN.md)*
+
+## Build
 
 ```bash
-# 需要 .NET SDK（任意近期版本即可交叉编译）
-./scripts/deploy.sh            # 构建 + 部署到 <VAM_ROOT>/BepInEx/plugins/
-# 或手动:
+# any recent .NET SDK can cross-compile this
+./scripts/deploy.sh            # build + deploy to <VAM_ROOT>/BepInEx/plugins/
+# or by hand:
 dotnet build src/VaMMCP.csproj -c Release
 ```
 
-### 关键构建事实
+### Build facts that matter
 
-- **TargetFramework = net35**：VaM 运行在 Unity 2018.1 的 .NET 3.5 API 级别（BepInEx 日志里 `CLR runtime version: 2.0.50727`）。net46+ 程序集会因缺少 ConcurrentQueue 等 API 而加载失败（本仓库第一版就踩过）。
-- **C# LangVersion 7.3**：够用且兼容旧工具链。
-- **引用**：
-  - `VaM_Data/Managed/Assembly-CSharp.dll`（通过 `VaMRoot` MSBuild 属性定位，默认 `..\..`，即仓库放在 VaM 目录内）
-  - `BepInEx.Core 5.4.21`（nuget.bepinex.dev）
-  - `UnityEngine.Modules 2018.1.9`（nuget.org，Unity 2018.1.9 模块程序集）
-  - `Microsoft.NETFramework.ReferenceAssemblies`（Linux/macOS 交叉编译 net35 必需）
-- **NuGet 缓存**：`scripts/deploy.sh` 会把 HOME/NUGET_PACKAGES 指到仓库内的 `.home/` 与 `.nuget/`（CI/沙箱 HOME 只读时必需）。
+- **TargetFramework = net35.** VaM runs at Unity 2018.1's .NET 3.5 API level (BepInEx logs
+  `CLR runtime version: 2.0.50727`). A net46+ assembly fails to load at runtime because APIs like
+  `ConcurrentQueue` are missing — the first iteration of this repo learned that the hard way.
+- **LangVersion 7.3**, which is as far as the old toolchain goes.
+- **References:**
+  - `VaM_Data/Managed/Assembly-CSharp.dll`, located through the `VaMRoot` MSBuild property
+    (default `..\..`, i.e. the repo sitting inside the VaM folder)
+  - `BepInEx.Core 5.4.21` (nuget.bepinex.dev)
+  - `UnityEngine.Modules 2018.1.9` (nuget.org)
+  - `Microsoft.NETFramework.ReferenceAssemblies` (required to target net35 on Linux/macOS)
+- **NuGet caches:** `scripts/deploy.sh` points HOME/NUGET_PACKAGES at `.home/` and `.nuget/` inside
+  the repo, which matters when the ambient HOME is read-only (sandboxes, CI).
 
-## 运行时架构
+### Why CI does not compile the plugin
+
+`Assembly-CSharp.dll` ships with VaM and cannot be redistributed, so a public GitHub runner has
+nothing to compile against. [`ci.yml`](../.github/workflows/ci.yml) therefore runs everything that
+does not need it (restore, shell linting, docs/registry consistency) and only performs a real build
+when the repository has a `VAM_ASSEMBLY_URL` secret pointing at a private copy of the assembly.
+Releases are built locally with `scripts/release.sh`.
+
+## Runtime architecture
 
 ```
-HTTP 工作线程 (TcpListener @127.0.0.1:9837)
+HTTP worker thread (TcpListener @127.0.0.1:9837)
   └─ McpServer.HandleHttp → JSON-RPC → tool.Handler
-       └─ MainThreadDispatcher.Run(fn, timeout)   ← 阻塞等待
-            └─ Plugin.Update() 每帧 drain 队列 → fn 在 Unity 主线程执行
+       └─ MainThreadDispatcher.Run(fn, timeout)   ← blocks the worker
+            └─ Plugin.Update() drains the queue each frame → fn runs on the Unity main thread
 ```
 
-- **所有 VaM/Unity API 只能在主线程访问**；工具处理器默认经 `Run()` 包装。
-- **轮询式工具**（`Tool.NeedsPoller=true`，如 `add_atom`/`add_person`/`add_plugin`/`hub_*`/`add_clothing_item`）在 HTTP 线程执行，内部用 `Mt.Run` 分片调用主线程——因为 VaM 的创建/加载是异步协程，需要轮询完成状态。
-- **HTTP 协议**：MCP Streamable HTTP（2025-06-18）。POST /mcp → JSON-RPC 响应（application/json）；GET → 405（规范允许，表示不提供 SSE 流）；通知 → 202。仅绑定 loopback + Origin 校验（DNS rebinding 防护）。所有响应带 Content-Length，支持 keep-alive。
+- **All VaM/Unity API access must happen on the main thread**; tool handlers are wrapped in `Run()`
+  by default.
+- **Polling tools** (`Tool.NeedsPoller = true`: `add_atom`, `add_person`, `add_plugin`, `hub_*`,
+  `add_clothing_item`) run on the HTTP thread and call `Mt.Run` in slices, because VaM creates and
+  loads things through coroutines that have to be waited on.
+- **HTTP layer:** MCP Streamable HTTP (2025-06-18). `POST /mcp` → JSON-RPC response
+  (`application/json`); `GET` → 405 (allowed by the spec, means "no SSE stream"); notifications →
+  202. Loopback bind + Origin validation (DNS-rebinding protection), at most 32 concurrent
+  connections, every response carries Content-Length and keep-alive works.
+- **Images:** a tool that returns `image_base64`/`image_mime` in its JSON gets those lifted out by
+  `McpServer.DoToolsCall` and re-emitted as an MCP image content block (see `capture_view`).
 
-## 调试
+## Debugging
 
-- 插件日志：`<VaM>/BepInEx/LogOutput.log`（`Log.Info/Warn/Error`；`Log.Debug` 默认被 BepInEx 过滤，需在 `BepInEx/config/BepInEx.cfg` 调日志级别）
-- VaM 自身日志：`%USERPROFILE%\AppData\LocalLow\MeshedVR\VaM\output_log.txt`（编译错误、Save 日志都在这里）
-- 冒烟测试：`./scripts/smoke-test.sh`（握手 + tools/list + status + list_atoms）
+- Plugin log: `<VaM>/BepInEx/LogOutput.log` (`Log.Info/Warn/Error`; `Log.Debug` is filtered out by
+  default — raise the level in `BepInEx/config/BepInEx.cfg`)
+- VaM's own log: `%USERPROFILE%\AppData\LocalLow\MeshedVR\VaM\output_log.txt` (script compile errors
+  and save diagnostics end up here)
+- Smoke test: `./scripts/smoke-test.sh` (handshake + tools/list + status + list_atoms)
 
-## 已知限制与坑（踩坑记录）
+## Known limitations and traps
 
-| 坑 | 说明 / 对策 |
+| Trap | What to do |
 | --- | --- |
-| net46 程序集无法加载 | VaM 是 .NET 3.5 级别，见上 |
-| 覆盖保存静默失败 | VaM 对插件"覆盖已存在文件"弹确认框，无人点击则**不保存**。`PrepareSavePath` 用 System.IO 先删旧文件再存 |
-| 预设保存不含完整材质参数 | `save_look`/`save_full_preset` 的 skin storable 只存了少量参数（VaM 的 Atom 预设机制如此）。跨场景搬运后需按需用 `set_param` 补设皮肤参数；**场景保存（save_scene）是完整的** |
-| `new_scene` 空场景无灯 | VaM 默认场景靠 `3PointLightSetup`；空场景需要自行加灯，且 `GlobalLighting`（masterIntensity 默认 0.1、环境色默认黑）参数**不随场景保存**，每次加载场景后需重设 |
-| `add_clothing_item` 找不到 DAZRuntimeCreator | 类型是 `MeshVR.DAZRuntimeCreator`（非全局命名空间）；且新建人物后角色异步加载中组件尚未实例化——工具已做轮询等待 |
-| Hub 直连 TLS 失败 | .NET 3.5 的 HttpWebRequest 无法 TLS1.2；必须用 UnityWebRequest（Unity 自带 TLS） |
-| eval 的 Eval() 模板不可用 | 库自带模板把代码插在类成员位置（编译必败）；本仓库自建完整包装类。且 `GetType().Name` 会隐式引用 System.Reflection 触发沙箱 |
-| 服装/发型物品是 `.vam` 文件 | 不是 .json；`list_clothing_presets` 同时扫描 .vam 与 .json |
-| `save_look` 目录 | VaM 预设目录：`Saves/Person/{Appearance,Pose,full}` |
-| 添加的人物 uid 可能被重命名 | VaM `CreateUID` 逻辑；以工具返回值为准 |
-| eval 沙箱 | System.IO / System.Reflection / System.AppDomain / UnityEditor / Mono.Cecil 禁用（VaM 运行时安全策略） |
+| net46 assemblies will not load | VaM is at the .NET 3.5 level, see above |
+| Overwriting a save silently does nothing | VaM asks for confirmation when a plugin overwrites an existing file, and nobody clicks it. `PrepareSavePath` deletes the old file through System.IO first |
+| Presets do not carry full material parameters | `save_look` / `save_full_preset` store only a few skin storable parameters (that is how VaM's atom presets work). Re-apply skin parameters with `set_param` after moving a look; **scene saves are complete** |
+| `new_scene` has no lights | VaM's default scene relies on `3PointLightSetup`. An empty scene needs a light, and `GlobalLighting` (masterIntensity 0.1, ambient black by default) is **not saved with the scene** — set it after every load |
+| `add_clothing_item` cannot find DAZRuntimeCreator | The type is `MeshVR.DAZRuntimeCreator` (not in the global namespace), and on a freshly created person the component does not exist yet while the character loads — the tool polls for it |
+| Hub requests fail on TLS | .NET 3.5's HttpWebRequest cannot do TLS 1.2; use UnityWebRequest (Unity brings its own TLS) |
+| The library's `Eval()` template is unusable | It inserts the code at class-member position, which never compiles; this repo builds its own wrapper class. Also `GetType().Name` implicitly pulls in System.Reflection and trips the sandbox |
+| Clothing/hair items are `.vam` files | Not .json; `list_clothing_presets` scans both |
+| `save_look` directories | VaM preset folders are `Saves/Person/{Appearance,Pose,full}` |
+| An added person's uid may be renamed | VaM's `CreateUID` logic — trust the tool's return value |
+| eval sandbox | System.IO / System.Reflection / System.AppDomain / UnityEditor / Mono.Cecil are blocked by VaM's runtime security policy |
 
-## API 速查（VaM 侧）
+## VaM API cheat sheet
 
-- `SuperController.singleton`：`GetAtoms()` / `GetAtomByUid(uid)` / `AddAtomByType(type, uid, userInvoked)`（协程）/ `RemoveAtom` / `Load` / `LoadMerge` / `NewScene` / `Save` / `SaveFromAtom(path, atom, physical, appearance)` / `GetFreeControllerNamesInAtom(uid)` / `MonitorCenterCamera` / `LoadJSON`
-- `Atom`：`uid` / `type` / `on` / `ToggleOn()` / `transform` / `GetStorableByID(id)` / `GetStorableIDs()`
-- `JSONStorable`：`GetFloatParamNames()` / `GetFloatParamValue(name)` / `SetFloatParamValue(name, v)`（bool/string/chooser/color 同理）、`GetAction(name)` / `RestoreFromJSON(jc, physical, appearance, prev, setUnlisted)`
-- 捏人：`DAZCharacterSelector`（`GetStorableByID("geometry")`）→ `morphBank1/2/3` → `DAZMorph.morphValue`
-- 灯光：`InvisibleLight` 的 `Light` storable（AdjustLightV2）：`type`(Spot/Directional/Point) / `intensity` / `color` / `spotAngle` / `shadowStrength`
-- 插件：`MVRPluginManager`（`GetStorableByID("PluginManager")`）→ `CreatePlugin()` → `pluginURLJSON.val = path` 触发异步编译；`scriptControllers.Count > 0` 表示加载完成
-- Hub：`MVR.Hub.HubDownloader.DownloadPackages(success, error, names...)`；API 端点 POST `{source:"VaM", action:"getResources"/"getResourceDetail", ...}`
-- 反编译源码参考：VaM 安装目录的 `src2/`（本开发机的参考来源）
+- `SuperController.singleton`: `GetAtoms()` / `GetAtomByUid(uid)` / `AddAtomByType(type, uid, userInvoked)`
+  (coroutine) / `RemoveAtom` / `Load` / `LoadMerge` / `NewScene` / `Save` /
+  `SaveFromAtom(path, atom, physical, appearance)` / `GetFreeControllerNamesInAtom(uid)` /
+  `MonitorCenterCamera` / `LoadJSON`
+- `Atom`: `uid` / `type` / `on` / `ToggleOn()` / `transform` / `GetStorableByID(id)` / `GetStorableIDs()`
+- `JSONStorable`: `GetFloatParamNames()` / `GetFloatParamValue(name)` / `SetFloatParamValue(name, v)`
+  (same shape for bool/string/chooser/color), `GetAction(name)` /
+  `RestoreFromJSON(jc, physical, appearance, prev, setUnlisted)`
+- Morphs: `DAZCharacterSelector` (`GetStorableByID("geometry")`) → `morphBank1/2/3` → `DAZMorph.morphValue`
+- Lights: the `Light` storable on `InvisibleLight` (AdjustLightV2): `type` (Spot/Directional/Point) /
+  `intensity` / `color` / `spotAngle` / `shadowStrength`
+- Plugins: `MVRPluginManager` (`GetStorableByID("PluginManager")`) → `CreatePlugin()` →
+  setting `pluginURLJSON.val = path` starts an async compile; `scriptControllers.Count > 0` means loaded
+- Hub: `MVR.Hub.HubDownloader.DownloadPackages(success, error, names...)`; API endpoint is a POST of
+  `{source:"VaM", action:"getResources"/"getResourceDetail", ...}`
+- Decompiled reference: `src2/` in the VaM install directory is the decompiled Assembly-CSharp source.
+  It is the fastest way to check an API — but it is Meshed VR's code, so never copy it into this repo.
 
-## 发布检查清单
+## Releasing
 
-- [ ] `dotnet build -c Release` 0 错误
-- [ ] `./scripts/smoke-test.sh` 通过（VaM 运行中）
-- [ ] 无测试残留路径（`Saves/scene/stage_test*.json` 等）
-- [ ] `.gitignore` 覆盖 `bin/ obj/ .nuget/ .home/`
-- [ ] README/TOOLS/DEVELOPMENT 与工具数一致
+1. Update `CHANGELOG.md`, and the version in `src/VaMMCP.csproj`, `src/Plugin.cs`
+   (`BepInPlugin`) and `src/Mcp/McpServer.cs` (`ServerVersion`).
+2. `./scripts/check-docs.sh` and `dotnet build -c Release` must both be clean.
+3. `./scripts/smoke-test.sh` against a running VaM.
+4. `./scripts/release.sh v1.2.3` — builds locally, tags, and publishes the release with `VaMMCP.dll`
+   attached.
+
+### Checklist
+
+- [ ] `dotnet build -c Release` — 0 errors, 0 warnings
+- [ ] `./scripts/check-docs.sh` passes
+- [ ] `./scripts/smoke-test.sh` passes with VaM running
+- [ ] No leftover test artefacts (`Saves/scene/stage_test*.json` and friends)
+- [ ] `.gitignore` still covers `bin/ obj/ .nuget/ .home/`
+- [ ] README / TOOLS / DEVELOPMENT agree with each other and with the tool count

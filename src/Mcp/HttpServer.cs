@@ -30,11 +30,15 @@ namespace VaMMCP.Mcp {
 	/// Binds to 127.0.0.1 only and validates the Origin header (DNS-rebinding protection).
 	/// </summary>
 	public class HttpServer {
+		/// <summary>Upper bound on simultaneously open connections (keeps a misbehaving local client from exhausting the thread pool).</summary>
+		private const int MaxConnections = 32;
+
 		private readonly McpServer mcp;
 		private readonly int port;
 		private TcpListener listener;
 		private Thread acceptThread;
 		private volatile bool running;
+		private int openConnections;
 
 		public HttpServer(McpServer mcp, int port) {
 			this.mcp = mcp;
@@ -62,6 +66,11 @@ namespace VaMMCP.Mcp {
 				try {
 					client = listener.AcceptTcpClient();
 					TcpClient c = client;
+					if (Interlocked.Increment(ref openConnections) > MaxConnections) {
+						Interlocked.Decrement(ref openConnections);
+						ThreadPool.QueueUserWorkItem(delegate { RejectBusy(c); });
+						continue;
+					}
 					ThreadPool.QueueUserWorkItem(delegate { HandleClient(c); });
 				} catch (Exception e) {
 					if (running) Log.Error("accept error: " + e.Message);
@@ -87,24 +96,25 @@ namespace VaMMCP.Mcp {
 					catch (SocketException) { break; }
 					if (req == null) break;
 
-					if (!OriginAllowed(req.Headers)) {
-						WriteResponse(stream, 403, "Forbidden", "application/json", "{\"error\":\"origin not allowed\"}", false);
+					string allowOrigin;
+					if (!OriginAllowed(req.Headers, out allowOrigin)) {
+						WriteResponse(stream, 403, "Forbidden", "application/json", "{\"error\":\"origin not allowed\"}", false, null);
 						break;
 					}
 					if (req.Method == "OPTIONS") {
-						WriteResponse(stream, 204, "No Content", null, null, true);
+						WriteResponse(stream, 204, "No Content", null, null, true, allowOrigin);
 						continue;
 					}
 					if (req.Method == "GET") {
-						WriteResponse(stream, 405, "Method Not Allowed", "text/plain", "MCP endpoint: POST /mcp (SSE GET not offered)", false);
+						WriteResponse(stream, 405, "Method Not Allowed", "text/plain", "MCP endpoint: POST /mcp (SSE GET not offered)", false, allowOrigin);
 						break;
 					}
 					if (req.Method != "POST") {
-						WriteResponse(stream, 405, "Method Not Allowed", "text/plain", "method not supported", false);
+						WriteResponse(stream, 405, "Method Not Allowed", "text/plain", "method not supported", false, allowOrigin);
 						break;
 					}
-					if (req.Path != "/mcp" && !req.Path.EndsWith("/mcp")) {
-						WriteResponse(stream, 404, "Not Found", "text/plain", "not found (use POST /mcp)", false);
+					if (req.Path != "/mcp" && req.Path != "/mcp/") {
+						WriteResponse(stream, 404, "Not Found", "text/plain", "not found (use POST /mcp)", false, allowOrigin);
 						break;
 					}
 
@@ -116,26 +126,47 @@ namespace VaMMCP.Mcp {
 						res = McpHttpResult.Json(500, "{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32603,\"message\":\"internal error\"}}");
 					}
 					if (res.Empty) {
-						WriteResponse(stream, 202, "Accepted", null, null, req.KeepAlive);
+						WriteResponse(stream, 202, "Accepted", null, null, req.KeepAlive, allowOrigin);
 					} else {
-						WriteResponse(stream, res.Code, "OK", "application/json", res.Body, req.KeepAlive);
+						WriteResponse(stream, res.Code, "OK", "application/json", res.Body, req.KeepAlive, allowOrigin);
 					}
 					keepAlive = req.KeepAlive;
 				}
 			} catch (Exception e) {
 				Log.Debug("client handler error: " + e.Message);
 			} finally {
+				Interlocked.Decrement(ref openConnections);
 				try { client.Close(); } catch { }
 			}
 		}
 
-		private static bool OriginAllowed(Dictionary<string, string> headers) {
+		/// <summary>Tell a client the connection limit is reached, then hang up.</summary>
+		private static void RejectBusy(TcpClient client) {
+			try {
+				WriteResponse(client.GetStream(), 503, "Service Unavailable", "application/json", "{\"error\":\"too many connections\"}", false, null);
+			} catch (Exception e) {
+				Log.Debug("reject error: " + e.Message);
+			} finally {
+				try { client.Close(); } catch { }
+			}
+		}
+
+		/// <summary>
+		/// DNS-rebinding protection. Requests without an Origin header (ordinary non-browser MCP
+		/// clients) pass; browser requests must originate from a loopback page. On success
+		/// allowOrigin holds the value to echo in Access-Control-Allow-Origin, or null when the
+		/// request is not a browser request and needs no CORS headers at all.
+		/// </summary>
+		private static bool OriginAllowed(Dictionary<string, string> headers, out string allowOrigin) {
+			allowOrigin = null;
 			string origin;
 			if (!headers.TryGetValue("origin", out origin) || string.IsNullOrEmpty(origin)) return true;
 			try {
 				Uri u = new Uri(origin);
 				string h = u.Host.ToLowerInvariant();
-				return h == "localhost" || h == "127.0.0.1" || h == "[::1]";
+				if (h != "localhost" && h != "127.0.0.1" && h != "::1" && h != "[::1]") return false;
+				allowOrigin = origin;
+				return true;
 			} catch {
 				return false;
 			}
@@ -230,7 +261,7 @@ namespace VaMMCP.Mcp {
 			return -1;
 		}
 
-		private static void WriteResponse(NetworkStream s, int code, string reason, string contentType, string body, bool keepAlive) {
+		private static void WriteResponse(NetworkStream s, int code, string reason, string contentType, string body, bool keepAlive, string allowOrigin) {
 			StringBuilder sb = new StringBuilder(256);
 			sb.Append("HTTP/1.1 ").Append(code).Append(' ').Append(reason).Append("\r\n");
 			if (contentType != null) {
@@ -239,9 +270,13 @@ namespace VaMMCP.Mcp {
 			int len = body != null ? Encoding.UTF8.GetByteCount(body) : 0;
 			sb.Append("Content-Length: ").Append(len).Append("\r\n");
 			sb.Append("Connection: ").Append(keepAlive ? "keep-alive" : "close").Append("\r\n");
-			sb.Append("Access-Control-Allow-Origin: *\r\n");
-			sb.Append("Access-Control-Allow-Headers: Content-Type, Accept, Mcp-Session-Id\r\n");
-			sb.Append("Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n");
+			if (allowOrigin != null) {
+				// Echo only the loopback origin that already passed OriginAllowed (never "*").
+				sb.Append("Access-Control-Allow-Origin: ").Append(allowOrigin).Append("\r\n");
+				sb.Append("Access-Control-Allow-Headers: Content-Type, Accept, Mcp-Session-Id, Mcp-Protocol-Version\r\n");
+				sb.Append("Access-Control-Allow-Methods: POST, GET, OPTIONS\r\n");
+			}
+			sb.Append("Vary: Origin\r\n");
 			sb.Append("\r\n");
 			byte[] head = Encoding.UTF8.GetBytes(sb.ToString());
 			s.Write(head, 0, head.Length);

@@ -1,0 +1,38 @@
+name: Bug report
+description: Something in VaMMCP does not work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do **not** report security vulnerabilities here — see [SECURITY.md](../blob/main/SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you asked for, what the tool returned, and what you expected instead.
+      placeholder: |
+        Called set_morph with {"name": "...", "value": 0.5} and got "Error: morph not found",
+        but the morph shows up in list_morphs.
+    validations:
+      required: true
+  - type: input
+    id: tool
+    attributes:
+      label: Tool call
+      description: The failing tool and its arguments, if there is one.
+      placeholder: 'set_morph {"person": "Person", "name": "Thigh Width", "value": 0.5}'
+  - type: textarea
+    id: log
+    attributes:
+      label: Log output
+      description: The relevant lines from `<VaM>/BepInEx/LogOutput.log` (and `output_log.txt` if VaM itself complained).
+      render: text
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: VaM / BepInEx / VaMMCP versions and your MCP client.
+      placeholder: VaM 1.22.0.13, BepInEx 5.4.21, VaMMCP 1.0.0, Claude Code
+    validations:
+      required: true

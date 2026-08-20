@@ -19,6 +19,9 @@ Thumbs.db
 # Release artifacts
 *.zip
 *.tar.gz
+RELEASE_NOTES.md
+# CI drops a private copy of VaM's Assembly-CSharp.dll here (never commit it)
+vamref/
 
 # Logs
 *.log

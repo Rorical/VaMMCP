@@ -1,78 +1,108 @@
 # VaMMCP — Virt-A-Mate × MCP
 
-让任何 MCP 客户端（Claude Code / Codex / Cursor / Claude Desktop / …）通过自然语言**完整控制 VaM**：
-搭场景、加 Atom、捏人（Morph）、换外观/服装/发型、摆姿势、做表情、控制骨骼、调任意参数、
-操作相机截图、浏览/下载 Hub 社区资源、挂载配置 VaM 插件、皮肤次表面反射等。
+[![CI](https://github.com/Rorical/VaMMCP/actions/workflows/ci.yml/badge.svg)](https://github.com/Rorical/VaMMCP/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-**MCP server 直接内置于 BepInEx 插件进程**，走 Streamable HTTP 传输（规范 2025-06-18），
-Agent 直连 `http://127.0.0.1:9837/mcp`，无需 Python、无外部进程、无轮询文件。
+*[中文文档](README.zh-CN.md)*
+
+Control [Virt-A-Mate](https://hub.virtamate.com/) from any MCP client (Claude Code, Codex,
+Cursor, Claude Desktop, …) in plain language: build scenes, add atoms, sculpt morphs, swap
+looks/clothing/hair, pose characters, drive expressions and bones, tweak any parameter,
+move the camera and take screenshots, browse and download Hub content, manage VaM plugins,
+and more.
+
+**The MCP server runs inside the BepInEx plugin, in the VaM process**, over Streamable HTTP
+(spec 2025-06-18). Your agent connects straight to `http://127.0.0.1:9837/mcp` — no Python,
+no side-car process, no file polling.
 
 ```
-MCP 客户端 ──HTTP/JSON-RPC──▶ VaMMCP (BepInEx 插件, VaM 进程内)
-                               ├─ 后台线程: 最小 HTTP server (仅绑定 127.0.0.1, Origin 校验)
-                               ├─ JSON-RPC / MCP 协议层 (initialize / tools/list / tools/call / resources)
-                               ├─ 主线程调度器 (队列 → Unity Update)
-                               └─ VaM 控制层 (SuperController / Atom / JSONStorable / DAZMorph / MVRPlugin …)
+MCP client ──HTTP/JSON-RPC──▶ VaMMCP (BepInEx plugin, inside the VaM process)
+                                ├─ background thread: tiny HTTP server (loopback-only, Origin-checked)
+                                ├─ JSON-RPC / MCP layer (initialize / tools/list / tools/call / resources)
+                                ├─ main-thread dispatcher (queue → Unity Update)
+                                └─ VaM control layer (SuperController / Atom / JSONStorable / DAZMorph / MVRPlugin …)
 ```
 
-> ⚠️ 本项目是**非官方**社区项目，与 Mesh VR / Virt-A-Mate / VaM Hub 无任何关联。
-> 请仅在你合法拥有的 VaM 副本上使用，并遵守 VaM 的 EULA 与 Hub 内容许可。
+> ⚠️ **Unofficial community project.** Not affiliated with, endorsed by, or connected to
+> Meshed VR, Virt-A-Mate or the VaM Hub. Use it only with a copy of VaM you legally own, and
+> respect the VaM EULA and the licence of any Hub content you download.
 
-## ✨ 功能一览（63 个工具）
+## ✨ Tools at a glance (63)
 
-| 分类 | 工具 |
+| Category | Tools |
 | --- | --- |
-| 状态 | `status` |
-| 场景 | `list_scenes` `load_scene` `new_scene` `save_scene` |
+| Status | `status` |
+| Scene | `list_scenes` `load_scene` `new_scene` `save_scene` |
 | Atom | `list_atom_types` `list_atoms` `add_atom` `remove_atom` `set_atom_on` `get_atom_transform` `set_atom_transform` |
-| 人物 | `add_person` `list_persons` `list_looks` `load_look` `save_look` `set_character` |
-| 预设导出 | `save_look`（外观，含服装/发型）`save_pose` `save_full_preset`（Full） |
-| 捏人 | `list_morphs` `set_morph` `get_morph` `reset_morphs` |
-| 服装/发型 | `list_packages` `list_clothing_presets`（扫描磁盘+全部 .var 包）`load_clothing_preset` `list_clothing_items` `add_clothing_item` `remove_clothing_item` `set_clothing_item_on` `list_hair_presets` `load_hair_preset` `list_hair_items` `add_hair_item` `remove_hair_item` `set_hair_item_on` |
-| 姿态/表情 | `list_poses` `load_pose` `save_pose` `list_expressions` `set_expression` |
-| 骨骼控制 | `list_controls` `get_control` `set_control` `set_gaze` |
-| 通用参数（长尾全覆盖） | `list_atom_storables` `list_storable_params` `get_param` `set_param` `call_action` |
-| 相机 | `get_camera` `set_camera` `capture_view` |
-| 模拟 | `set_simulation` `reset_simulation` |
-| Hub 社区资源 | `hub_browse` `hub_detail` `hub_download` |
-| 皮肤 | `set_skin_sss`（次表面反射 `_SubdermisColor`） |
-| 插件管理 | `list_plugins` `add_plugin` `remove_plugin` |
-| 逃生舱（默认关） | `eval_cs` |
+| Person | `add_person` `list_persons` `list_looks` `load_look` `save_look` `set_character` |
+| Preset export | `save_look` (appearance incl. clothing/hair) `save_pose` `save_full_preset` |
+| Morphs | `list_morphs` `set_morph` `get_morph` `reset_morphs` |
+| Clothing / hair | `list_packages` `list_clothing_presets` (scans disk + every .var package) `load_clothing_preset` `list_clothing_items` `add_clothing_item` `remove_clothing_item` `set_clothing_item_on` `list_hair_presets` `load_hair_preset` `list_hair_items` `add_hair_item` `remove_hair_item` `set_hair_item_on` |
+| Pose / expression | `list_poses` `load_pose` `save_pose` `list_expressions` `set_expression` |
+| Bone control | `list_controls` `get_control` `set_control` `set_gaze` |
+| Generic parameters (long tail) | `list_atom_storables` `list_storable_params` `get_param` `set_param` `call_action` |
+| Camera | `get_camera` `set_camera` `capture_view` |
+| Simulation | `set_simulation` `reset_simulation` |
+| Hub | `hub_browse` `hub_detail` `hub_download` |
+| Skin | `set_skin_sss` (subdermis colour) |
+| Plugins | `list_plugins` `add_plugin` `remove_plugin` |
+| Escape hatch (off by default) | `eval_cs` |
 
-**设计要点**：任何 VaM UI 滑块本质上都是 JSONStorable 参数——
-`list_storable_params` 枚举 → `set_param` 设置，这就是"全面"的来源；
-Morph 是捏人核心（`DAZMorph.morphValue`）；插件加载后即成为 atom 的 storable，通用层直接覆盖。
+Full reference: **[docs/TOOLS.md](docs/TOOLS.md)**.
 
-## 📦 环境要求
+**Design note:** every slider in the VaM UI is ultimately a JSONStorable parameter — enumerate
+with `list_storable_params`, write with `set_param`. That is where the "covers everything"
+claim comes from. Morphs are the heart of character sculpting (`DAZMorph.morphValue`), and a
+loaded VaM plugin simply becomes another storable on the atom, so the generic layer reaches it too.
 
-- Virt-A-Mate 1.20+（开发验证于 1.22.0.13 / Unity 2018.1.9f2 / Mono）
-- BepInEx 5.4.x（x64）已安装到 VaM 根目录（`winhttp.dll` + `BepInEx/`）
-- 构建：.NET SDK（在 WSL2 + dotnet 10 下交叉编译通过；**目标 net35**——VaM 运行在 .NET 3.5 API 级别）
+## 📦 Requirements
 
-## 🚀 安装
+- Virt-A-Mate 1.20+ (developed against 1.22.0.13 / Unity 2018.1.9f2 / Mono)
+- BepInEx 5.4.x (x64) installed in the VaM folder (`winhttp.dll` + `BepInEx/`)
+- An MCP client that speaks Streamable HTTP
 
-```bash
-# 1) 安装 BepInEx（若尚未安装；只新增文件，不覆盖任何现有文件）
-./scripts/install-bepinex.sh            # 或设 VAM_ROOT 指向 VaM 目录
+Building from source additionally needs the .NET SDK. The plugin targets **net35** because VaM
+runs at the .NET 3.5 API level.
 
-# 2) 构建并部署插件
-./scripts/deploy.sh
-# 产物: <VaM>/BepInEx/plugins/VaMMCP.dll
+## 🚀 Install
 
-# 3) 启动 VaM。查看日志:
-#     <VaM>/BepInEx/LogOutput.log  应出现 "VaMMCP ready. MCP endpoint: ..."
+### Option A — prebuilt DLL (recommended, no toolchain needed)
+
+1. Install BepInEx 5.4.21 x64 into your VaM folder if you have not already
+   ([download](https://github.com/BepInEx/BepInEx/releases/tag/v5.4.21) → unzip into the folder
+   containing `VaM.exe` → launch VaM once so BepInEx creates its directories).
+2. Download `VaMMCP.dll` from the [latest release](https://github.com/Rorical/VaMMCP/releases/latest).
+3. Drop it into `<VaM>\BepInEx\plugins\`.
+4. Start VaM. `<VaM>\BepInEx\LogOutput.log` should contain
+   `VaMMCP ready. MCP endpoint: http://127.0.0.1:9837/mcp`.
+
+### Option B — PowerShell installer (Windows)
+
+Run in the VaM folder; it installs BepInEx if missing and fetches the latest VaMMCP release:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1
+# or point it somewhere else:
+powershell -ExecutionPolicy Bypass -File scripts\install.ps1 -VamRoot "D:\VaM"
 ```
 
-仓库放在 VaM 目录内时开箱即用；放在别处时设置环境变量/构建参数：
+### Option C — build from source (Linux/macOS/WSL/Windows)
 
 ```bash
-export VAM_ROOT="D:/path/to/VaM"       # scripts 读取
-# 或: dotnet build -p:VaMRoot=D:/path/to/VaM
+./scripts/install-bepinex.sh    # only if BepInEx is not installed yet
+./scripts/deploy.sh             # build + copy to <VaM>/BepInEx/plugins/VaMMCP.dll
 ```
 
-## 🔌 接入 MCP 客户端
+Both scripts assume the repo sits inside the VaM folder. Otherwise point them at it:
 
-核心配置（VaM 运行期间）：
+```bash
+export VAM_ROOT="D:/path/to/VaM"        # read by the scripts
+# or: dotnet build src/VaMMCP.csproj -c Release -p:VaMRoot=D:/path/to/VaM
+```
+
+## 🔌 Connect an MCP client
+
+With VaM running:
 
 ```json
 {
@@ -90,42 +120,51 @@ claude mcp add vam --transport http http://127.0.0.1:9837/mcp
 codex mcp add vam --transport http http://127.0.0.1:9837/mcp
 ```
 
-详见 [docs/clients.md](docs/clients.md)。冒烟测试：`./scripts/smoke-test.sh`。
+Per-client instructions: [docs/clients.md](docs/clients.md). Smoke test: `./scripts/smoke-test.sh`.
 
-## ⚙️ 配置（BepInEx/config/com.vammcp.core.cfg）
+## ⚙️ Configuration (`BepInEx/config/com.vammcp.core.cfg`)
 
-| 键 | 默认 | 说明 |
+| Key | Default | Meaning |
 | --- | --- | --- |
-| Server.Enabled | true | 是否随 VaM 启动 MCP server |
-| Server.Port | 9837 | 监听端口（仅绑定 127.0.0.1） |
-| Security.AllowEval | false | 是否开放 `eval_cs`（进程内执行任意 C#，高危） |
-| Security.EvalTimeoutSec | 30 | eval 超时（秒） |
+| Server.Enabled | true | Start the MCP server when VaM launches |
+| Server.Port | 9837 | Listening port (bound to 127.0.0.1 only) |
+| Security.AllowEval | false | Expose `eval_cs` (runs arbitrary C# in-process — dangerous) |
+| Security.EvalTimeoutSec | 30 | `eval_cs` timeout in seconds |
 
-## 🧱 架构与开发
+The file appears after the first launch with the plugin installed.
+
+## 🧱 Architecture
 
 ```
 src/
-├── Plugin.cs              # BepInEx 入口、配置、主线程调度
-├── MainThread.cs          # HTTP 线程 → Unity 主线程的队列调度器（同步等待）
-├── Util.cs                # 日志 / ApiError
+├── Plugin.cs              # BepInEx entry point, config, main-thread pump
+├── MainThread.cs          # HTTP thread → Unity main thread dispatcher (blocking)
+├── Util.cs                # logging / ApiError
 ├── Mcp/
-│   ├── HttpServer.cs      # 最小 HTTP/1.1 server（Streamable HTTP 传输、Origin 校验、keep-alive）
-│   ├── McpServer.cs       # MCP 协议：initialize / tools/list / tools/call / resources
-│   ├── Tool.cs            # 工具定义（名称/描述/JSON Schema/处理器/超时）
-│   └── ToolRegistry.cs    # 63 个工具注册
+│   ├── HttpServer.cs      # minimal HTTP/1.1 server (Streamable HTTP, Origin check, keep-alive)
+│   ├── McpServer.cs       # MCP protocol: initialize / tools/list / tools/call / resources
+│   ├── Tool.cs            # tool definition (name / description / JSON schema / handler / timeout)
+│   └── ToolRegistry.cs    # all 63 tool registrations
 └── Api/
-    └── VaMApi.cs          # VaM 控制层（全部工具实现）
+    └── VaMApi.cs          # VaM control layer (every tool implementation)
 ```
 
-- 参考：VaM 安装目录的 `src2/` 是 Assembly-CSharp 反编译源码，查 API 直接翻它
-- 详见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for build details, threading rules and a long
+list of VaM-specific pitfalls. Contributions welcome — [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## 🔒 安全说明
+## 🔒 Security
 
-- HTTP server 只绑定 `127.0.0.1`，并校验 Origin 头（防 DNS rebinding）
-- `eval_cs` 默认关闭；开启等于给 Agent 本机任意代码执行权（且受 VaM 运行时沙箱限制：System.IO / System.Reflection / System.AppDomain / UnityEditor / Mono.Cecil 禁用）
-- 下载 Hub 内容请遵守 Hub 的内容许可；付费内容需要你在 VaM 内登录 Hub 账户
+- The HTTP server binds to `127.0.0.1` only and validates the `Origin` header (DNS-rebinding
+  protection). There is **no authentication**: anything that can reach loopback on your machine
+  can drive VaM. Treat it like any other local dev server.
+- `eval_cs` is disabled by default. Enabling it gives your agent arbitrary code execution inside
+  the VaM process (still subject to VaM's runtime sandbox: System.IO, System.Reflection,
+  System.AppDomain, UnityEditor and Mono.Cecil are blocked).
+- Hub downloads are subject to Hub content licences; paid content requires you to be signed into
+  your Hub account inside VaM.
 
-## 📄 许可证
+Reporting a vulnerability: [SECURITY.md](SECURITY.md).
 
-[MIT](LICENSE)。本项目按"现状"提供，作者不对任何用途承担担保或责任。
+## 📄 Licence
+
+[MIT](LICENSE). Provided "as is", without warranty or liability of any kind.

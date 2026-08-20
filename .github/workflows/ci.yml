@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tool registry / docs / version consistency
+        run: ./scripts/check-docs.sh
+
+      - name: Lint shell scripts
+        run: |
+          command -v shellcheck >/dev/null 2>&1 || {
+            sudo apt-get update -qq && sudo apt-get install -y shellcheck
+          }
+          shellcheck scripts/*.sh
+
+      - name: Parse PowerShell installer
+        shell: pwsh
+        run: |
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path scripts/install.ps1), [ref]$null, [ref]$errors) | Out-Null
+          if ($errors) { $errors | ForEach-Object { Write-Host $_ }; exit 1 }
+          Write-Host 'scripts/install.ps1 parses cleanly'
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore (validates package references and feeds)
+        run: dotnet restore src/VaMMCP.csproj
+
+  build:
+    # VaM's Assembly-CSharp.dll cannot be redistributed, so a public runner has nothing to
+    # compile against. Configure a VAM_ASSEMBLY_URL secret pointing at a private copy of
+    # VaM_Data/Managed/Assembly-CSharp.dll to turn this into a real build; otherwise the job
+    # reports why it was skipped. Release binaries are built locally by scripts/release.sh.
+    name: Build plugin
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: gate
+        name: Is a VaM reference assembly available?
+        env:
+          VAM_ASSEMBLY_URL: ${{ secrets.VAM_ASSEMBLY_URL }}
+        run: |
+          if [ -n "${VAM_ASSEMBLY_URL:-}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Compile step skipped"
+              echo
+              echo "VaM ships \`Assembly-CSharp.dll\`, which cannot be redistributed to a public"
+              echo "runner, so there is nothing to compile against here."
+              echo
+              echo "To enable a real build, set a \`VAM_ASSEMBLY_URL\` repository secret pointing at"
+              echo "a private copy of \`VaM_Data/Managed/Assembly-CSharp.dll\`. Release binaries are"
+              echo "built locally with \`scripts/release.sh\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.gate.outputs.enabled == 'true'
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Fetch VaM reference assembly
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          VAM_ASSEMBLY_URL: ${{ secrets.VAM_ASSEMBLY_URL }}
+        run: |
+          mkdir -p vamref/VaM_Data/Managed
+          curl -sSfL "$VAM_ASSEMBLY_URL" -o vamref/VaM_Data/Managed/Assembly-CSharp.dll
+          ls -l vamref/VaM_Data/Managed/Assembly-CSharp.dll
+
+      - name: Build (Release, warnings are errors)
+        if: steps.gate.outputs.enabled == 'true'
+        run: dotnet build src/VaMMCP.csproj -c Release -warnaserror -p:VaMRoot="$PWD/vamref"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.gate.outputs.enabled == 'true'
+        with:
+          name: VaMMCP.dll
+          path: src/bin/Release/net35/VaMMCP.dll
+          if-no-files-found: error

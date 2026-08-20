@@ -1,147 +1,155 @@
-# 工具参考（63 个）
+# Tool reference (63 tools)
 
-所有工具通过 `tools/call` 调用：`{ "name": "...", "arguments": { ... } }`。
-`person` 参数省略时默认使用场景中第一个 Person。数值数组均为 `[x, y, z]`。
+*[中文版](TOOLS.zh-CN.md)*
 
-## 状态与会话
+Every tool is invoked through `tools/call`: `{ "name": "...", "arguments": { ... } }`.
+A `*` marks a required argument, `?` an optional one. When `person` is omitted the first Person
+in the scene is used. Vectors are `[x, y, z]`.
+
+`eval_cs` is only registered when `Security.AllowEval=true`, so a default install exposes 62 tools.
+
+## Status
 
 ### status
-VaM 运行时状态：插件版本、VaM 版本、原子/人物数量、端点、eval 开关。
+VaM runtime status: plugin version, VaM version, atom/person counts, endpoint, eval switch.
 
-## 场景
+## Scene
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `list_scenes` | `search?` | 列出 `Saves/scene` 下的场景 |
-| `load_scene` | `path`*, `merge?` | 加载场景（`merge=true` 合并进当前场景）；支持 .var 包路径（`Package.1:/Saves/scene/x.json`） |
-| `new_scene` | — | 新建空场景（**丢弃当前场景**；空场景无默认灯光，记得打灯/开环境光） |
-| `save_scene` | `path?` | 保存场景（默认 `Saves/scene/VaMMCP_<时间戳>.json`；覆盖已存在文件会自动先删后存） |
+| `list_scenes` | `search?` | Scenes under `Saves/scene` |
+| `load_scene` | `path`*, `merge?` | Load a scene (`merge=true` merges into the current one); .var paths work (`Package.1:/Saves/scene/x.json`) |
+| `new_scene` | — | New empty scene (**discards the current one**; an empty scene has no lights — add one or raise ambient light) |
+| `save_scene` | `path?` | Save the scene (default `Saves/scene/VaMMCP_<timestamp>.json`; an existing file is removed first so the save is not swallowed by VaM's confirm dialog) |
 
 ## Atom
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `list_atom_types` | — | 可创建的原子类型（按分类，来自 VaM 运行时数据） |
-| `list_atoms` | `type?` | 场景原子列表（uid/type/on/位置/旋转） |
-| `add_atom` | `type`*, `uid?` | 创建原子，等待其就绪（最长 45s） |
-| `remove_atom` | `uid`* | 删除原子 |
-| `set_atom_on` | `uid`*, `on`* | 显示/隐藏 |
-| `get_atom_transform` | `uid`* | 世界坐标/欧拉角/缩放 |
-| `set_atom_transform` | `uid`*, `position?`, `rotation?`, `scale?`, `relative?` | 变换（`relative=true` 为相对位移） |
+| `list_atom_types` | — | Creatable atom types, grouped by category (from VaM's runtime data) |
+| `list_atoms` | `type?` | Atoms in the scene (uid/type/on/position/rotation) |
+| `add_atom` | `type`*, `uid?` | Create an atom and wait until it is ready (up to 45 s) |
+| `remove_atom` | `uid`* | Delete an atom |
+| `set_atom_on` | `uid`*, `on`* | Show/hide |
+| `get_atom_transform` | `uid`* | World position / euler angles / scale |
+| `set_atom_transform` | `uid`*, `position?`, `rotation?`, `scale?`, `relative?` | Transform (`relative=true` offsets instead of setting) |
 
-## 人物
+## Person
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `add_person` | `uid?` | 添加人物（uid 可能被 VaM 重命名，以返回值为准） |
-| `list_persons` | — | 人物列表（uid/角色名/性别/位置） |
-| `list_looks` | `search?` | 外观预设列表（`Saves/Person/Appearance`） |
-| `load_look` | `path`*, `person?` | 应用外观预设（角色/服装/发型/morph 增量；异步，稍后验证） |
-| `save_look` | `path?`, `person?` | 导出外观预设（**注意**：VaM 的预设保存不含完整材质参数，跨场景搬运后需按需补设皮肤参数） |
-| `set_character` | `person?`, `name`* | 切换基础角色网格（名称见 `get_param storable=geometry param=characterSelection` 的 choices） |
+| `add_person` | `uid?` | Add a Person (VaM may rename the uid — trust the return value) |
+| `list_persons` | — | Persons in the scene (uid/character/gender/position) |
+| `list_looks` | `search?` | Appearance presets (`Saves/Person/Appearance`) |
+| `load_look` | `path`*, `person?` | Apply an appearance preset (character/clothing/hair/morph deltas; asynchronous, verify a moment later) |
+| `save_look` | `path?`, `person?` | Export an appearance preset (**note**: VaM presets do not carry the full material parameter set — re-apply skin parameters after moving a look between scenes) |
+| `set_character` | `person?`, `name`* | Switch the base character mesh (names come from the choices of `get_param storable=geometry param=characterSelection`) |
 
-## 预设导出
+## Preset export
 
-| 工具 | 说明 |
+| Tool | Notes |
 | --- | --- |
-| `save_look` | 外观（角色/服装/发型/morph）→ `Saves/Person/Appearance/` |
-| `save_pose` | 姿态+物理 → `Saves/Person/Pose/` |
-| `save_full_preset` | 全量（外观+姿态+物理）→ `Saves/Person/full/` |
+| `save_look` | Appearance (character/clothing/hair/morphs) → `Saves/Person/Appearance/` |
+| `save_pose` | Pose + physics → `Saves/Person/Pose/` |
+| `save_full_preset` | Everything (appearance + pose + physics) → `Saves/Person/full/` |
 
-## 捏人（Morph）
+## Morphs
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `list_morphs` | `person?`, `search?`, `region?`, `group?`, `limit?` | 搜索 morph（含名称/uid/区域/分组/当前值） |
-| `set_morph` | `person?`, `name`*, `value`* | 设置 morph 值（典型范围 -1..1） |
-| `get_morph` | `person?`, `name`* | 读取 morph 值 |
-| `reset_morphs` | `person?`, `region?` | 归零（可按区域） |
+| `list_morphs` | `person?`, `search?`, `region?`, `group?`, `limit?` | Search morphs (name/uid/region/group/current value) |
+| `set_morph` | `person?`, `name`*, `value`* | Set a morph value (typically -1..1) |
+| `get_morph` | `person?`, `name`* | Read a morph value |
+| `reset_morphs` | `person?`, `region?` | Zero morphs, optionally only one region |
 
-## 服装 / 发型
+## Clothing / hair
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `list_packages` | — | 已安装 .var 包（111 个级别的资产源） |
-| `list_clothing_presets` | `search?` | 服装预设/物品：磁盘 + **递归扫描所有包**的 `Custom/Clothing`（.vam/.json） |
-| `load_clothing_preset` | `path`*, `person?` | 应用服装预设 |
-| `list_clothing_items` | `person?` | 人物当前服装物品（uid/名称/active） |
-| `add_clothing_item` | `path`*, `person?` | 添加服装物品（包路径 `.vam`；等待角色就绪后加载） |
-| `remove_clothing_item` | `id`*, `person?` | 移除 |
-| `set_clothing_item_on` | `id`*, `on`*, `person?` | 穿/脱 |
-| `list_hair_presets` / `load_hair_preset` / `list_hair_items` / `add_hair_item` / `remove_hair_item` / `set_hair_item_on` | 同服装 | 发型（`Custom/Hair`） |
+| `list_packages` | — | Installed .var packages |
+| `list_clothing_presets` | `search?` | Clothing presets and items: disk **plus a recursive scan of every package**'s `Custom/Clothing` (.vam/.json) |
+| `load_clothing_preset` | `path`*, `person?` | Apply a clothing preset |
+| `list_clothing_items` | `person?` | Clothing currently on the person (uid/name/active) |
+| `add_clothing_item` | `path`*, `person?` | Add a clothing item (`.vam` package path; waits for the character to finish loading) |
+| `remove_clothing_item` | `id`*, `person?` | Remove an item |
+| `set_clothing_item_on` | `id`*, `on`*, `person?` | Wear / take off |
+| `list_hair_presets` / `load_hair_preset` / `list_hair_items` / `add_hair_item` / `remove_hair_item` / `set_hair_item_on` | same as clothing | Hair (`Custom/Hair`) |
 
-## 姿态 / 表情
+## Pose / expression
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `list_poses` | `search?` | 姿态预设（`Saves/Person/Pose`） |
-| `load_pose` | `path`*, `person?`, `all?` | 应用姿态（`all=true` 应用到所有人） |
-| `save_pose` | `path?`, `person?` | 导出姿态 |
-| `list_expressions` | `person?` | 表情 morph 列表（启发式过滤） |
-| `set_expression` | `person?`, `name`*, `value?`, `reset?` | 设置表情（默认先清空其他表情再设，value 默认 1） |
+| `list_poses` | `search?` | Pose presets (`Saves/Person/Pose`) |
+| `load_pose` | `path`*, `person?`, `all?` | Apply a pose (`all=true` applies it to every person) |
+| `save_pose` | `path?`, `person?` | Export a pose |
+| `list_expressions` | `person?` | Expression morphs (heuristic filter) |
+| `set_expression` | `person?`, `name`*, `value?`, `reset?` | Set an expression (clears the other expressions first by default; `value` defaults to 1) |
 
-## 骨骼控制
+## Bone control
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `list_controls` | `person?` | FreeControllerV3 控制点（41 个：headControl/chestControl/…） |
-| `get_control` | `person?`, `control`* | 控制点世界位置/欧拉角 |
-| `set_control` | `person?`, `control`*, `position?`, `rotation?` | 移动/旋转控制点 |
-| `set_gaze` | `person?`, `amount?`, `targetControl?` | 视线（尽力而为；精确控制见 lookAt storable 参数） |
+| `list_controls` | `person?` | FreeControllerV3 control points (headControl / chestControl / …) |
+| `get_control` | `person?`, `control`* | Control point world position / euler angles |
+| `set_control` | `person?`, `control`*, `position?`, `rotation?` | Move / rotate a control point |
+| `set_gaze` | `person?`, `amount?`, `targetControl?` | Gaze (best effort; for precise control use the `lookAt` storable parameters) |
 
-## 通用参数（长尾全覆盖）
+## Generic parameters (the long tail)
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `list_atom_storables` | `uid`* | 原子全部 storable（含类型） |
-| `list_storable_params` | `uid`*, `storable`* | 参数内省：floats（含 min/max/default）/bools/strings/choosers/colors/actions/customParams/properties |
-| `get_param` | `uid`*, `storable`*, `param`* | 读参数（float/bool/string/chooser/color/property 自动识别） |
-| `set_param` | `uid`*, `storable`*, `param`*, `value`*, `type?` | 写参数（颜色支持 `#RRGGBB` 或 `r,g,b,a`） |
-| `call_action` | `uid`*, `storable`*, `action`* | 触发 storable 的动作（按钮） |
+| `list_atom_storables` | `uid`* | Every storable on an atom, with its type |
+| `list_storable_params` | `uid`*, `storable`* | Parameter introspection: floats (with min/max/default) / bools / strings / choosers / colors / actions / customParams / properties |
+| `get_param` | `uid`*, `storable`*, `param`* | Read a parameter (float/bool/string/chooser/color/property auto-detected) |
+| `set_param` | `uid`*, `storable`*, `param`*, `value`*, `type?` | Write a parameter (colors accept `#RRGGBB` or `r,g,b,a`) |
+| `call_action` | `uid`*, `storable`*, `action`* | Trigger a storable action (a button in the UI) |
 
-`type` 可强制指定：`float|bool|string|chooser|color|property`（`property` 走反射读写公共属性，覆盖 customParamNames 如 `gravityX`）。
+`type` can force the interpretation: `float|bool|string|chooser|color|property`
+(`property` reads/writes a public property through reflection, covering customParamNames such as `gravityX`).
 
-## 相机
+## Camera
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `get_camera` | — | 监视器相机位置/旋转/FOV |
-| `set_camera` | `position?`, `rotation?`, `fov?` | 移动相机 |
-| `capture_view` | `width?`, `height?`, `path?` | 渲染截图（默认 `Saves/PluginData/vam-mcp/preview.png`，Agent 可配合图像工具"看"效果） |
+| `get_camera` | — | Monitor camera position / rotation / FOV |
+| `set_camera` | `position?`, `rotation?`, `fov?` | Move the camera |
+| `capture_view` | `width?`, `height?`, `path?`, `return_image?` | Render a screenshot (default `Saves/PluginData/vam-mcp/preview.png`). With `return_image=true` the PNG also comes back as an MCP image block, so clients that cannot read the VaM folder can still see it — keep the resolution modest (e.g. 640×360); anything above 4 MB stays on disk only |
 
-## 模拟
+## Simulation
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `set_simulation` | `paused?`, `timeScale?` | 暂停/恢复/时间缩放 |
-| `reset_simulation` | — | 重置物理模拟（软体/布料抖动） |
+| `set_simulation` | `paused?`, `timeScale?` | Pause / resume / time scale |
+| `reset_simulation` | — | Reset the physics simulation (settles soft-body and cloth jitter) |
 
-## Hub 社区资源
+## Hub (community content)
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `hub_browse` | `search?`, `page?`, `perpage?`, `sort?`, `type?` | 搜索 VaM Hub（返回 id/title/作者/版本/类型/下载量/评分/tags） |
-| `hub_detail` | `package?`, `resource_id?` | 资源详情：包名 + 所有版本 .var 文件 + 依赖 |
-| `hub_download` | `package`* | 用游戏自带下载器下载安装（处理鉴权/依赖；免费内容匿名可用，付费需在 VaM 登录） |
+| `hub_browse` | `search?`, `page?`, `perpage?`, `sort?`, `type?` | Search the VaM Hub (id/title/author/version/type/downloads/rating/tags) |
+| `hub_detail` | `package?`, `resource_id?` | Resource detail: package name + every version's .var + dependencies |
+| `hub_download` | `package`* | Download and install through VaM's own downloader (handles auth and dependencies; free content works anonymously, paid content needs you signed in inside VaM) |
 
-## 皮肤
+## Skin
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `set_skin_sss` | `person?`, `color`* | 设置次表面反射色（`_SubdermisColor`；粉调如 `#FFC9C9` 显白皙） |
+| `set_skin_sss` | `person?`, `color`* | Subdermis (subsurface) colour `_SubdermisColor`; a pink tint such as `#FFC9C9` reads as fairer skin |
 
-## 插件管理（VaM 原生插件）
+## Plugin management (native VaM plugins)
 
-| 工具 | 参数 | 说明 |
+| Tool | Arguments | Notes |
 | --- | --- | --- |
-| `list_plugins` | `uid?` | 插件列表（空 uid = CoreControl 会话插件；传人物 uid 看人物插件） |
-| `add_plugin` | `path`*, `uid?` | 挂载 .cs/.cslist/.dll 插件，等待编译完成；加载后插件成为 storable，用 `list_storable_params`/`set_param` 配置（storable id 形如 `plugin#0_MVRPlugin.类名`） |
-| `remove_plugin` | `plugin_uid`*, `uid?` | 移除插件 |
+| `list_plugins` | `uid?` | Loaded plugins (empty uid = CoreControl session plugins; pass a person uid for that person's plugins) |
+| `add_plugin` | `path`*, `uid?` | Load a .cs/.cslist/.dll plugin and wait for compilation. Once loaded the plugin is a storable, so `list_storable_params` / `set_param` configure it (storable ids look like `plugin#0_MVRPlugin.ClassName`) |
+| `remove_plugin` | `plugin_uid`*, `uid?` | Unload a plugin |
 
-## 逃生舱
+## Escape hatch
 
-### eval_cs（默认关闭，`Security.AllowEval=true` 开启）
-- 无 `;` → 表达式模式，返回表达式的值
-- 含 `;` → 语句模式（需要值时用显式 `return`）
-- `sc` 绑定 `SuperController.singleton`
-- 受 VaM 运行时沙箱限制：System.IO / System.Reflection / System.AppDomain / UnityEditor / Mono.Cecil 禁用（注意 `GetType().Name` 会引用 System.Reflection，用 `ToString()` 代替）
+### eval_cs (disabled by default, enable with `Security.AllowEval=true`)
+- No `;` → expression mode, the value of the expression is returned
+- Contains `;` → statement mode (use an explicit `return` when you want a value)
+- `sc` is bound to `SuperController.singleton`
+- Restricted by VaM's runtime sandbox: System.IO / System.Reflection / System.AppDomain /
+  UnityEditor / Mono.Cecil are blocked (note that `GetType().Name` pulls in System.Reflection —
+  use `ToString()` instead)

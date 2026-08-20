@@ -1,0 +1,110 @@
+name: Release
+
+# Drafts a GitHub release when a v* tag is pushed: verifies the tag against the project
+# version, and pulls the release notes out of CHANGELOG.md. The DLL is attached only when a
+# VAM_ASSEMBLY_URL secret makes a real build possible (see .github/workflows/ci.yml for why);
+# otherwise finish the draft locally with `./scripts/release.sh <tag>`.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to draft a release for (e.g. v1.0.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Draft release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Resolve version
+        id: version
+        run: |
+          tag="${{ github.event.inputs.tag || github.ref_name }}"
+          version="${tag#v}"
+          csproj_version=$(grep -oE '<Version>[^<]+</Version>' src/VaMMCP.csproj | sed 's/<[^>]*>//g')
+          if [ "$version" != "$csproj_version" ]; then
+            echo "::error::tag $tag does not match <Version>$csproj_version</Version> in src/VaMMCP.csproj"
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Consistency checks
+        run: ./scripts/check-docs.sh
+
+      - name: Extract release notes
+        run: |
+          awk -v v="${{ steps.version.outputs.version }}" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "::error::CHANGELOG.md has no section for [${{ steps.version.outputs.version }}]"
+            exit 1
+          fi
+          {
+            echo
+            echo '---'
+            echo
+            echo '**Install:** drop `VaMMCP.dll` into `<VaM>\BepInEx\plugins\` (BepInEx 5.4.x x64'
+            echo 'required), start VaM, then point your MCP client at `http://127.0.0.1:9837/mcp`.'
+          } >> RELEASE_NOTES.md
+
+      - id: gate
+        env:
+          VAM_ASSEMBLY_URL: ${{ secrets.VAM_ASSEMBLY_URL }}
+        run: |
+          if [ -n "${VAM_ASSEMBLY_URL:-}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "No VAM_ASSEMBLY_URL secret: drafting notes only. Attach the binary with \`./scripts/release.sh ${{ steps.version.outputs.tag }}\`." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.gate.outputs.enabled == 'true'
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build the plugin
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          VAM_ASSEMBLY_URL: ${{ secrets.VAM_ASSEMBLY_URL }}
+        run: |
+          mkdir -p vamref/VaM_Data/Managed
+          curl -sSfL "$VAM_ASSEMBLY_URL" -o vamref/VaM_Data/Managed/Assembly-CSharp.dll
+          dotnet build src/VaMMCP.csproj -c Release -warnaserror -p:VaMRoot="$PWD/vamref"
+
+      - name: Create or update the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          HAS_BUILD: ${{ steps.gate.outputs.enabled }}
+        run: |
+          assets=()
+          if [ "$HAS_BUILD" = "true" ]; then
+            assets=("src/bin/Release/net35/VaMMCP.dll#VaMMCP.dll")
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release edit "$TAG" --title "VaMMCP $VERSION" --notes-file RELEASE_NOTES.md
+            if [ ${#assets[@]} -gt 0 ]; then
+              gh release upload "$TAG" "${assets[@]}" --clobber
+            fi
+          else
+            gh release create "$TAG" "${assets[@]}" \
+              --title "VaMMCP $VERSION" \
+              --notes-file RELEASE_NOTES.md \
+              --draft
+          fi

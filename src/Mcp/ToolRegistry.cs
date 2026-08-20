@@ -233,10 +233,11 @@ namespace VaMMCP.Mcp {
 				.P("rotation", "array", "[x, y, z] euler angles", false)
 				.P("fov", "number", "Field of view in degrees", false)
 				.Fn(api.SetCamera));
-			tools.Add(new Tool("capture_view", "Render the monitor camera to a PNG file (default Saves/PluginData/vam-mcp/preview.png) and return its path.")
-				.P("width", "number", "Image width (default 1280)", false)
-				.P("height", "number", "Image height (default 720)", false)
+			tools.Add(new Tool("capture_view", "Render the monitor camera to a PNG file (default Saves/PluginData/vam-mcp/preview.png) and return its path. Set return_image=true to also get the picture back inline, for clients that cannot read the VaM folder themselves.")
+				.P("width", "number", "Image width (default 1280, max 4096)", false)
+				.P("height", "number", "Image height (default 720, max 4096)", false)
 				.P("path", "string", "Optional output path", false)
+				.P("return_image", "boolean", "Return the PNG inline as an MCP image (default false; keep the resolution modest, e.g. 640x360, and note that images above 4 MB stay on disk only)", false)
 				.Fn(api.CaptureView));
 
 			// ---------- simulation ----------

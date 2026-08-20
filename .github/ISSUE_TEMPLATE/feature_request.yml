@@ -1,0 +1,18 @@
+name: Feature request
+description: A missing tool, or a tool that should do more
+labels: [enhancement]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: What do you want to do in VaM?
+      description: Describe the end goal, not just the API. Often the generic parameter tools already cover it.
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: What did you try?
+      description: |
+        Did `list_atom_storables` / `list_storable_params` / `set_param` get you there? If yes, a
+        dedicated tool may still be worth it — say why (discoverability, multi-step, timing).
