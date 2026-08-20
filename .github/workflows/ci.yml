@@ -35,7 +35,7 @@ jobs:
           if ($errors) { $errors | ForEach-Object { Write-Host $_ }; exit 1 }
           Write-Host 'scripts/install.ps1 parses cleanly'
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '8.0.x'
 
@@ -73,7 +73,7 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         if: steps.gate.outputs.enabled == 'true'
         with:
           dotnet-version: '8.0.x'
