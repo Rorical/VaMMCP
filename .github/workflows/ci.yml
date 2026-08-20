@@ -91,7 +91,7 @@ jobs:
         if: steps.gate.outputs.enabled == 'true'
         run: dotnet build src/VaMMCP.csproj -c Release -warnaserror -p:VaMRoot="$PWD/vamref"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: steps.gate.outputs.enabled == 'true'
         with:
           name: VaMMCP.dll
