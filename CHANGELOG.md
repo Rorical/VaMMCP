@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- `scripts/deploy.sh` and `scripts/install-bepinex.sh` resolved `VAM_ROOT` one level too high
+  (the scripts already `cd` to the repo root), so with the repo inside the VaM folder they wrote
+  to the *parent* of the VaM install. Both now resolve it correctly and refuse to run against a
+  directory with no `VaM_Data` in it.
+
 ## [1.0.0] - 2026-08-20
 
 First public release: an MCP server that lives inside Virt-A-Mate as a BepInEx plugin.

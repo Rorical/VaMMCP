@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # Build VaMMCP and deploy the DLL into the VaM BepInEx plugins folder.
-# Usage: ./scripts/deploy.sh   (VAM_ROOT defaults to the VaM folder two levels up)
+# Usage: ./scripts/deploy.sh   (VAM_ROOT defaults to the folder containing this repo)
 set -euo pipefail
 cd "$(dirname "$0")/.."
-VAM_ROOT="${VAM_ROOT:-$(cd ../.. && pwd)}"
+VAM_ROOT="${VAM_ROOT:-$(cd .. && pwd)}"
+if [ ! -d "$VAM_ROOT/VaM_Data" ]; then
+  echo "No VaM_Data in '$VAM_ROOT' — that does not look like a VaM install." >&2
+  echo "Set VAM_ROOT, e.g. VAM_ROOT=\"D:/path/to/VaM\" $0" >&2
+  exit 1
+fi
 echo "VaM root: $VAM_ROOT"
 
 # dotnet first-run needs a writable HOME (the sandbox/CI HOME may be read-only)
