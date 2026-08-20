@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
 # Build VaMMCP and deploy the DLL into the VaM BepInEx plugins folder.
-# Usage: ./scripts/deploy.sh   (VAM_ROOT defaults to the folder containing this repo)
+#
+# Usage: ./scripts/deploy.sh [--build-only] [extra dotnet build args...]
+#   VAM_ROOT defaults to the folder containing this repo.
+#   --build-only skips the copy, which is what you want while VaM is running: Windows locks the
+#   loaded DLL, so deploying to a live game fails.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+
+BUILD_ONLY=0
+if [ "${1:-}" = "--build-only" ]; then
+  BUILD_ONLY=1
+  shift
+fi
 VAM_ROOT="${VAM_ROOT:-$(cd .. && pwd)}"
 if [ ! -d "$VAM_ROOT/VaM_Data" ]; then
   echo "No VaM_Data in '$VAM_ROOT' — that does not look like a VaM install." >&2
@@ -23,8 +33,16 @@ mkdir -p "$HOME"
 dotnet build src/VaMMCP.csproj -c Release "$@"
 
 DLL="src/bin/Release/net35/VaMMCP.dll"
+if [ "$BUILD_ONLY" = "1" ]; then
+  echo "Built $DLL (not deployed)."
+  exit 0
+fi
+
 PLUGINS="$VAM_ROOT/BepInEx/plugins"
 mkdir -p "$PLUGINS"
-cp -v "$DLL" "$PLUGINS/"
-echo ""
-echo "Deployed. Restart VaM (or reload BepInEx plugins) to load VaMMCP."
+if ! cp "$DLL" "$PLUGINS/VaMMCP.dll"; then
+  echo "Could not write $PLUGINS/VaMMCP.dll — is VaM running? Windows locks the loaded DLL." >&2
+  exit 1
+fi
+echo "Deployed $DLL -> $PLUGINS/VaMMCP.dll"
+echo "Restart VaM to load it (BepInEx loads plugins at startup)."

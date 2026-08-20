@@ -11,7 +11,7 @@ namespace VaMMCP.Mcp {
 	public class McpServer {
 		private const string ProtocolVersion = "2025-06-18";
 		public const string ServerName = "VaMMCP";
-		public const string ServerVersion = "1.0.0";
+		public const string ServerVersion = "1.0.1";
 
 		private readonly MainThreadDispatcher mt;
 		private readonly List<Tool> tools;
@@ -84,7 +84,7 @@ namespace VaMMCP.Mcp {
 
 			JSONClass resp = new JSONClass();
 			resp["jsonrpc"] = "2.0";
-			if (idNode != null) resp["id"] = idNode;
+			if (idNode != null) resp["id"] = JSONRaw.Id(idNode);
 			resp["result"] = result;
 			return McpHttpResult.Json(200, resp.ToString());
 		}
@@ -92,9 +92,9 @@ namespace VaMMCP.Mcp {
 		private static McpHttpResult Err(JSONNode id, int code, string message) {
 			JSONClass resp = new JSONClass();
 			resp["jsonrpc"] = "2.0";
-			if (id != null) resp["id"] = id;
+			if (id != null) resp["id"] = JSONRaw.Id(id);
 			JSONClass err = new JSONClass();
-			err["code"] = new JSONData(code);
+			err["code"] = JSONRaw.Num(code);
 			err["message"] = message;
 			resp["error"] = err;
 			return McpHttpResult.Json(200, resp.ToString());
@@ -103,10 +103,10 @@ namespace VaMMCP.Mcp {
 		private static JSONClass DoInitialize(JSONClass obj) {
 			JSONClass capabilities = new JSONClass();
 			JSONClass toolsCap = new JSONClass();
-			toolsCap["listChanged"] = "false";
+			toolsCap["listChanged"] = JSONRaw.Bool(false);
 			capabilities["tools"] = toolsCap;
 			JSONClass resCap = new JSONClass();
-			resCap["subscribe"] = "false";
+			resCap["subscribe"] = JSONRaw.Bool(false);
 			capabilities["resources"] = resCap;
 
 			JSONClass info = new JSONClass();
@@ -183,7 +183,7 @@ namespace VaMMCP.Mcp {
 
 			JSONClass r = new JSONClass();
 			r["content"] = content;
-			r["isError"] = "false";
+			r["isError"] = JSONRaw.Bool(false);
 			return r;
 		}
 
@@ -195,7 +195,7 @@ namespace VaMMCP.Mcp {
 			content.Add(textItem);
 			JSONClass r = new JSONClass();
 			r["content"] = content;
-			r["isError"] = "true";
+			r["isError"] = JSONRaw.Bool(true);
 			return r;
 		}
 

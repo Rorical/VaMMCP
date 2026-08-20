@@ -224,8 +224,10 @@ namespace VaMMCP.Api {
 		public JSONNode Status() {
 			JSONClass r = new JSONClass();
 			r["plugin"] = "VaMMCP";
-			r["version"] = "1.0.0";
-			try { r["vaMVersion"] = Application.version; } catch { r["vaMVersion"] = "unknown"; }
+			r["version"] = Mcp.McpServer.ServerVersion;
+			// Application.version is the Unity player version ("1.0"); the VaM build number is
+			// what SuperController reports (and what it stamps into saved scenes).
+			try { r["vaMVersion"] = SC.GetVersion(); } catch { r["vaMVersion"] = "unknown"; }
 			try { r["vaMRoot"] = Application.dataPath + "/.."; } catch { }
 			int atoms = 0;
 			int persons = 0;

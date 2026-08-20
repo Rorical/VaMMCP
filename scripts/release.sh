@@ -36,7 +36,8 @@ fi
 ./scripts/check-docs.sh
 
 # ---- build -----------------------------------------------------------------------------
-./scripts/deploy.sh >/dev/null
+# --build-only: publishing must not depend on writing into a live VaM install
+./scripts/deploy.sh --build-only >/dev/null
 DLL="src/bin/Release/net35/VaMMCP.dll"
 [ -f "$DLL" ] || { echo "build produced no $DLL" >&2; exit 1; }
 echo "built $DLL ($(wc -c < "$DLL") bytes)"
