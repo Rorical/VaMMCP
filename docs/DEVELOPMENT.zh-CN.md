@@ -74,8 +74,9 @@ HTTP 工作线程 (TcpListener @127.0.0.1:9837)
 - 灯光：`InvisibleLight` 的 `Light` storable（AdjustLightV2）：`type`(Spot/Directional/Point) / `intensity` / `color` / `spotAngle` / `shadowStrength`
 - 插件：`MVRPluginManager`（`GetStorableByID("PluginManager")`）→ `CreatePlugin()` → `pluginURLJSON.val = path` 触发异步编译；`scriptControllers.Count > 0` 表示加载完成
 - Hub：`MVR.Hub.HubDownloader.DownloadPackages(success, error, names...)`；API 端点 POST `{source:"VaM", action:"getResources"/"getResourceDetail", ...}`
-- 反编译源码参考：VaM 安装目录的 `src2/` 是反编译的 Assembly-CSharp 源码，查 API 最快；
-  但那是 Meshed VR 的代码，**绝不要抄进本仓库**
+- 找更多 API：插件本身就能内省运行中的游戏——对着活的 atom 先 `list_atom_storables`
+  再 `list_storable_params`，能枚举出 VaM 暴露的全部参数（包括没有专用工具覆盖的），
+  通常比手工翻 API 快
 
 ## 发布流程
 

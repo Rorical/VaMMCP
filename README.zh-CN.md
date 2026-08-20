@@ -142,8 +142,8 @@ src/
     └── VaMApi.cs          # VaM 控制层（全部工具实现）
 ```
 
-- 参考：VaM 安装目录的 `src2/` 是 Assembly-CSharp 反编译源码，查 API 直接翻它
-- 详见 [docs/DEVELOPMENT.zh-CN.md](docs/DEVELOPMENT.zh-CN.md)，贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)
+详见 [docs/DEVELOPMENT.zh-CN.md](docs/DEVELOPMENT.zh-CN.md)（构建约束、线程模型、VaM 的各种坑），
+贡献指南见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 🔒 安全说明
 

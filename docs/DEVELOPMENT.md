@@ -96,8 +96,9 @@ HTTP worker thread (TcpListener @127.0.0.1:9837)
   setting `pluginURLJSON.val = path` starts an async compile; `scriptControllers.Count > 0` means loaded
 - Hub: `MVR.Hub.HubDownloader.DownloadPackages(success, error, names...)`; API endpoint is a POST of
   `{source:"VaM", action:"getResources"/"getResourceDetail", ...}`
-- Decompiled reference: `src2/` in the VaM install directory is the decompiled Assembly-CSharp source.
-  It is the fastest way to check an API — but it is Meshed VR's code, so never copy it into this repo.
+- Finding more: the plugin can introspect the running game. `list_atom_storables` followed by
+  `list_storable_params` on a live atom enumerates every parameter VaM exposes, including the ones
+  no dedicated tool covers — usually faster than hunting for the API by hand.
 
 ## Releasing
 

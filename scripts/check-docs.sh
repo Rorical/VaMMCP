@@ -71,6 +71,17 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
   [ -n "$nonexec" ] || note "scripts/*.sh executable bits ok"
 fi
 
+# ---- no references to local-only VaM artefacts -----------------------------------------
+if git rev-parse --git-dir >/dev/null 2>&1; then
+  # exclude this file, which necessarily contains the pattern it looks for
+  if git grep -nI 'src2/' -- . ':(exclude)scripts/check-docs.sh' >/dev/null 2>&1; then
+    err "tracked files reference src2/ (a local decompile, not something VaM ships):"
+    git grep -nI 'src2/' -- . ':(exclude)scripts/check-docs.sh' | sed 's/^/    /'
+  else
+    note "no references to local decompiled sources"
+  fi
+fi
+
 # ---- nothing machine-specific leaked into tracked files --------------------------------
 if git rev-parse --git-dir >/dev/null 2>&1; then
   if git grep -nIE '(/home/[a-z0-9_-]+/|[A-Z]:\\Users\\|/mnt/[a-z]/Data/)' -- . >/dev/null 2>&1; then

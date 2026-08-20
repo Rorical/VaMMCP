@@ -6,8 +6,8 @@ Thanks for looking. Bug reports, tool ideas and pull requests are all welcome.
 
 - You need a legally owned copy of VaM to build or test anything — the project references
   `VaM_Data/Managed/Assembly-CSharp.dll` from your own install.
-- **Never copy code out of `src2/`** (VaM's decompiled sources) into this repository. Reading it to
-  learn an API is fine and is how most of this was written; pasting it is a licence violation.
+- **Do not paste VaM's own code into this repository.** Calling its public API from a plugin is the
+  entire point of the project; copying Meshed VR's implementation into an MIT-licensed repo is not.
 - By contributing you agree that your work is released under the [MIT licence](LICENSE).
 
 ## Getting set up

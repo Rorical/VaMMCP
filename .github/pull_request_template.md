@@ -10,4 +10,4 @@
 - [ ] `./scripts/smoke-test.sh` with VaM running
 - [ ] Tool docs updated in **both** `docs/TOOLS.md` and `docs/TOOLS.zh-CN.md` (if tools changed)
 
-<!-- Reminder: net35 only, and never paste code from VaM's decompiled src2/. -->
+<!-- Reminder: net35 only, and no third-party code pasted in — see CONTRIBUTING.md. -->
