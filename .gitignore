@@ -1,0 +1,24 @@
+# Build artifacts
+src/bin/
+src/obj/
+*.user
+
+# Local dotnet/NuGet caches used by scripts/deploy.sh (writable HOME + package cache)
+.nuget/
+.home/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Release artifacts
+*.zip
+*.tar.gz
+
+# Logs
+*.log
